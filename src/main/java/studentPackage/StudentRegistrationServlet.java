@@ -53,7 +53,7 @@ public class StudentRegistrationServlet extends HttpServlet {
     
     // --- CONFIGURE YOUR EMAIL SETTINGS HERE ---
     private static final String SMTP_HOST = "smtp.gmail.com";
-    private static final int SMTP_PORT = 587;
+    private static final int SMTP_PORT = 465;
     private static final String SMTP_USER = "gorleupendra42@gmail.com";
     private static final String SMTP_PASS = "njjwzyomwewzadnb";
     private static final String ADMIN_EMAIL = "gorleupendra42@gmail.com";
