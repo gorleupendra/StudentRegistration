@@ -53,16 +53,12 @@ public class StudentRegistrationServlet extends HttpServlet {
     
     // --- CONFIGURE YOUR EMAIL SETTINGS HERE ---
     private static final String SMTP_HOST = "smtp.gmail.com";
-    private static final int SMTP_PORT = 465;
+    private static final int SMTP_PORT = 465; // Using SMTPS port
     private static final String SMTP_USER = "gorleupendra42@gmail.com";
-    private static final String SMTP_PASS = "njjwzyomwewzadnb";
+    private static final String SMTP_PASS = "njjwzyomwewzadnb"; // This should be a Google App Password
     private static final String ADMIN_EMAIL = "gorleupendra42@gmail.com";
 
-    // --- CONFIGURE GOOGLE DRIVE SETTINGS ---
-    // The name of your service account JSON key file (must be in the `src` folder)
-    private static final String SERVICE_ACCOUNT_JSON_PATH = "student-portal-application-aa71e2240f18.json";    // The ID of the Google Drive folder where PDFs will be saved
-    private static final String DRIVE_FOLDER_ID = "12BqPHehXelgi9-maUqYDZdOeuMrxMSc7";
-
+    // --- Google Drive Settings Removed ---
 
     protected void doPost(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
         res.setContentType("text/plain");
@@ -165,9 +161,7 @@ public class StudentRegistrationServlet extends HttpServlet {
                     // 1. Create the PDF in memory
                     byte[] pdfBytes = createPdf(req, photoBytes);
                     
-                    // 2. NEW: Upload the PDF to Google Drive
-                    String fileName = regdno + "_" + name.replaceAll("\\s+", "_") + ".pdf";
-                    //GoogleDriveUploader.uploadPdf(pdfBytes, fileName, DRIVE_FOLDER_ID, SERVICE_ACCOUNT_JSON_PATH);
+                    // 2. Google Drive Upload Code Removed
 
                     // 3. Send the email with PDF attachment
                     sendRegistrationEmail(email, name, pdfBytes);
@@ -175,7 +169,7 @@ public class StudentRegistrationServlet extends HttpServlet {
 
                 } catch (Exception postProcessingException) {
                     postProcessingException.printStackTrace();
-                    out.write("Registration successful! However, we couldn't send the confirmation email or save the form to Google Drive. Please contact support.");
+                    out.write("Registration successful! However, we couldn't send the confirmation email. Please contact support.");
                 }
 
             } else {
@@ -197,8 +191,6 @@ public class StudentRegistrationServlet extends HttpServlet {
         }
     }
     
-    // createPdf, addTableRow, and sendRegistrationEmail methods remain unchanged...
-    // They are omitted here for brevity but are included in the full file.
     
     private byte[] createPdf(HttpServletRequest req, byte[] photoBytes) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -267,9 +259,15 @@ public class StudentRegistrationServlet extends HttpServlet {
     private void sendRegistrationEmail(String studentEmail, String studentName, byte[] pdfBytes) throws Exception {
         Properties props = new Properties();
         props.put("mail.smtp.host", SMTP_HOST);
-        props.put("mail.smtp.port", SMTP_PORT);
+        props.put("mail.smtp.port", SMTP_PORT); // 465
         props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.starttls.enable", "true");
+        
+        // Use SSL for port 465, remove STARTTLS
+        props.put("mail.smtp.ssl.enable", "true");
+        // The two lines below are often needed for Gmail SMTPS
+        props.put("mail.smtp.socketFactory.port", "465");
+        props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+
 
         Session session = Session.getInstance(props, new Authenticator() {
             protected PasswordAuthentication getPasswordAuthentication() {
@@ -301,4 +299,3 @@ public class StudentRegistrationServlet extends HttpServlet {
         
     }
 }
-
