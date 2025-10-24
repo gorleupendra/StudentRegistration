@@ -102,7 +102,7 @@ public class StudentRegistrationServlet extends HttpServlet {
             con = DbConnection.getConnection();
             con.setAutoCommit(false);
 
-            // --- 3. Insert into 'STUDENTS' details table ---
+            // --- 3. Insert into 'STUDENTS' details table ---1
             String sqlStudentDetails = "INSERT INTO STUDENTS (REGD_NO, NAME, FATHERNAME, MOTHERNAME, ADMNO, RANK, ADTYPE, JOINCATE, EMAIL, PHONE, DOB, GENDER, VILLAGE, MANDAL, DIST, PINCODE, PHOTO, SIGN, PASSWORD, DEPT, CLASS) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             psStudentDetails = con.prepareStatement(sqlStudentDetails);
             
