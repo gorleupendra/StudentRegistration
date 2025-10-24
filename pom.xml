@@ -3,7 +3,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     
-    <!-- Your project's name from the image -->
+    <!-- Your project's name -->
     <groupId>com.studentregistration</groupId>
     <artifactId>StudentRegistration</artifactId>
     <version>1.0.0</version>
@@ -22,7 +22,7 @@
     <dependencies>
     
         <!-- 1. Jakarta Servlet API (Needed to compile your servlet) -->
-        <!-- <scope>provided</scope> means the server (webapp-runner) will provide this -->
+        <!-- <scope>provided</scope> means the server (Tomcat) will provide this -->
         <dependency>
             <groupId>jakarta.servlet</groupId>
             <artifactId>jakarta.servlet-api</artifactId>
@@ -70,8 +70,8 @@
             <version>8.0.4</version>
         </dependency>
         
-        <!-- 5. PostgreSQL Database Driver (For your DbConnection.java) -->
-        <!-- Render's free database is PostgreSQL -->
+        <!-- 5. PostgreSQL Database Driver -->
+        <!-- Render's free database is PostgreSQL, so you will need this driver. -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
@@ -82,6 +82,7 @@
 
     <build>
         <!-- This sets the final name of the .war file to "StudentRegistration.war" -->
+        <!-- This is CRITICAL so your Dockerfile can find it -->
         <finalName>${project.artifactId}</finalName>
         
         <plugins>

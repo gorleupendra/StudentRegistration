@@ -17,7 +17,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.Properties;
+import java.util.Base64; // Import Base64 for the attachment
 
 // PDF Generation Imports (iText 7)
 import com.itextpdf.io.image.ImageDataFactory;
@@ -32,19 +32,17 @@ import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
 
-// Email Sending Imports (Jakarta Mail)
-import jakarta.mail.Authenticator;
-import jakarta.mail.Message;
-import jakarta.mail.Multipart;
-import jakarta.mail.PasswordAuthentication;
-import jakarta.mail.Session;
-import jakarta.mail.Transport;
-import jakarta.mail.internet.InternetAddress;
-import jakarta.mail.internet.MimeBodyPart;
-import jakarta.mail.internet.MimeMessage;
-import jakarta.mail.internet.MimeMultipart;
-import jakarta.activation.DataSource;
-import jakarta.mail.util.ByteArrayDataSource;
+// ===============================================
+// ==         NEW SENDGRID IMPORTS              ==
+// ===============================================
+import com.sendgrid.Method;
+import com.sendgrid.Request;
+import com.sendgrid.Response;
+import com.sendgrid.SendGrid;
+import com.sendgrid.helpers.mail.Mail;
+import com.sendgrid.helpers.mail.objects.Attachments;
+import com.sendgrid.helpers.mail.objects.Content;
+import com.sendgrid.helpers.mail.objects.Email;
 
 
 @MultipartConfig(fileSizeThreshold = 1024 * 1024, maxFileSize = 1024 * 1024 * 5, maxRequestSize = 1024 * 1024 * 20)
@@ -52,20 +50,15 @@ public class StudentRegistrationServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
     
     // --- CONFIGURE YOUR EMAIL SETTINGS HERE ---
-    private static final String SMTP_HOST = "smtp.gmail.com";
-    private static final int SMTP_PORT = 465; // Using SMTPS port
-    private static final String SMTP_USER = "gorleupendra42@gmail.com";
-    private static final String SMTP_PASS = "njjwzyomwewzadnb"; // This should be a Google App Password
+    // We get the API key from the environment variables, NOT hard-coded
     private static final String ADMIN_EMAIL = "gorleupendra42@gmail.com";
 
-    // --- Google Drive Settings Removed ---
 
     protected void doPost(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
         res.setContentType("text/plain");
         PrintWriter out = res.getWriter();
         System.out.println("Servlet called");
         Connection con = null;
-        PreparedStatement psParentStudent = null;
         PreparedStatement psStudentDetails = null;
 
         try {
@@ -109,14 +102,7 @@ public class StudentRegistrationServlet extends HttpServlet {
             con = DbConnection.getConnection();
             con.setAutoCommit(false);
 
-            /*/ --- 3. Insert into parent 'student' table ---
-            String sqlParent = "INSERT INTO student (REGD_NO, NAME) VALUES (?, ?)";
-            psParentStudent = con.prepareStatement(sqlParent);
-            psParentStudent.setString(1, regdno);
-            psParentStudent.setString(2, name);
-            int studentParentRows = psParentStudent.executeUpdate();*/
-
-            // --- 4. Insert into child 'STUDENTS' details table ---
+            // --- 3. Insert into 'STUDENTS' details table ---
             String sqlStudentDetails = "INSERT INTO STUDENTS (REGD_NO, NAME, FATHERNAME, MOTHERNAME, ADMNO, RANK, ADTYPE, JOINCATE, EMAIL, PHONE, DOB, GENDER, VILLAGE, MANDAL, DIST, PINCODE, PHOTO, SIGN, PASSWORD, DEPT, CLASS) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             psStudentDetails = con.prepareStatement(sqlStudentDetails);
             
@@ -161,9 +147,7 @@ public class StudentRegistrationServlet extends HttpServlet {
                     // 1. Create the PDF in memory
                     byte[] pdfBytes = createPdf(req, photoBytes);
                     
-                    // 2. Google Drive Upload Code Removed
-
-                    // 3. Send the email with PDF attachment
+                    // 2. Send the email with PDF attachment (using SendGrid)
                     sendRegistrationEmail(email, name, pdfBytes);
                     out.write("Registration successful! A confirmation has been sent to your email.");
 
@@ -184,13 +168,14 @@ public class StudentRegistrationServlet extends HttpServlet {
             out.write("Error: " + e.getMessage());
 
         } finally {
-            try { if (psParentStudent != null) psParentStudent.close(); } catch (SQLException e) { e.printStackTrace(); }
+            // Closed psParentStudent since it was removed
             try { if (psStudentDetails != null) psStudentDetails.close(); } catch (SQLException e) { e.printStackTrace(); }
             try { if (con != null) con.close(); } catch (SQLException e) { e.printStackTrace(); }
             if (out != null) out.close();
         }
     }
     
+    // createPdf and addTableRow methods are unchanged...
     
     private byte[] createPdf(HttpServletRequest req, byte[] photoBytes) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -256,46 +241,68 @@ public class StudentRegistrationServlet extends HttpServlet {
         table.addCell(new Cell().add(new Paragraph(value)).setPadding(5));
     }
     
+    // ========================================================================
+    // ==   THIS IS THE NEW, WORKING sendRegistrationEmail METHOD            ==
+    // ========================================================================
     private void sendRegistrationEmail(String studentEmail, String studentName, byte[] pdfBytes) throws Exception {
-        Properties props = new Properties();
-        props.put("mail.smtp.host", SMTP_HOST);
-        props.put("mail.smtp.port", SMTP_PORT); // 465
-        props.put("mail.smtp.auth", "true");
         
-        // Use SSL for port 465, remove STARTTLS
-        props.put("mail.smtp.ssl.enable", "true");
-        // The two lines below are often needed for Gmail SMTPS
-        props.put("mail.smtp.socketFactory.port", "465");
-        props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+        // 1. Get the API Key from the environment variable (Set this in Render!)
+        String sendGridApiKey = System.getenv("SENDGRID_API_KEY");
+        
+        if (sendGridApiKey == null || sendGridApiKey.isEmpty()) {
+            System.err.println("SENDGRID_API_KEY not set. Email will not be sent.");
+            // We throw an exception so the user is notified
+            throw new Exception("Email service is not configured.");
+        }
 
+        // 2. Set up the "From" and "To" email objects
+        Email from = new Email(ADMIN_EMAIL); // Your "From" email
+        Email to = new Email(studentEmail);  // The student's email
+        
+        // 3. Set the email subject and content
+        String subject = "Registration Confirmation - Andhra University";
+        Content content = new Content("text/plain", 
+            "Dear " + studentName + ",\n\n" +
+            "Thank you for registering. Your application form is attached to this email for your records.\n\n" +
+            "Best regards,\nAndhra University Admissions"
+        );
+        
+        // 4. Create the Mail object
+        Mail mail = new Mail(from, subject, to, content);
+        
+        // 5. Add the PDF attachment
+        String pdfBase64 = Base64.getEncoder().encodeToString(pdfBytes);
+        Attachments attachment = new Attachments();
+        attachment.setContent(pdfBase64);
+        attachment.setType("application/pdf");
+        attachment.setFilename("ApplicationForm_" + studentName.replaceAll("\\s+", "_") + ".pdf");
+        attachment.setDisposition("attachment");
+        mail.addAttachments(attachment);
 
-        Session session = Session.getInstance(props, new Authenticator() {
-            protected PasswordAuthentication getPasswordAuthentication() {
-                return new PasswordAuthentication(SMTP_USER, SMTP_PASS);
+        // 6. Send the email using the SendGrid API
+        SendGrid sg = new SendGrid(sendGridApiKey);
+        Request request = new Request();
+        
+        try {
+            request.setMethod(Method.POST);
+            request.setEndpoint("mail/send");
+            request.setBody(mail.build());
+            
+            Response response = sg.api(request);
+            
+            // Log the response from SendGrid
+            System.out.println("SendGrid Response Status Code: " + response.getStatusCode());
+            System.out.println("SendGrid Response Body: " + response.getBody());
+            
+            if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                // Handle non-successful responses
+                throw new IOException("SendGrid request failed: " + response.getBody());
             }
-        });
 
-        Message message = new MimeMessage(session);
-        message.setFrom(new InternetAddress(SMTP_USER));
-        message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(studentEmail));
-        message.addRecipient(Message.RecipientType.BCC, new InternetAddress(ADMIN_EMAIL));
-        message.setSubject("Registration Confirmation - Andhra University");
-
-        MimeBodyPart textPart = new MimeBodyPart();
-        textPart.setText("Dear " + studentName + ",\n\nThank you for registering. Your application form is attached to this email for your records.\n\nBest regards,\nAndhra University Admissions");
-
-        MimeBodyPart pdfAttachmentPart = new MimeBodyPart();
-        DataSource source = new ByteArrayDataSource(pdfBytes, "application/pdf");
-        pdfAttachmentPart.setDataHandler(new jakarta.activation.DataHandler(source));
-        pdfAttachmentPart.setFileName("ApplicationForm_" + studentName.replaceAll("\\s+", "_") + ".pdf");
-        
-        Multipart multipart = new MimeMultipart();
-        multipart.addBodyPart(textPart);
-        multipart.addBodyPart(pdfAttachmentPart);
-
-        message.setContent(multipart);
-
-        Transport.send(message);
-        
+        } catch (IOException ex) {
+            System.err.println("Error sending email via SendGrid: " + ex.getMessage());
+            throw ex;
+        }
     }
 }
+
