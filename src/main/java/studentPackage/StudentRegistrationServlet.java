@@ -270,7 +270,7 @@ public class StudentRegistrationServlet extends HttpServlet {
         // 4. Create the Mail object
         Mail mail = new Mail(from, subject, to, content);
         
-        // 5. Add the PDF attachment
+        // 5. Add the PDF attachment1
         String pdfBase64 = Base64.getEncoder().encodeToString(pdfBytes);
         Attachments attachment = new Attachments();
         attachment.setContent(pdfBase64);
