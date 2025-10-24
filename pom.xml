@@ -1,0 +1,107 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <!-- Your project's name from the image -->
+    <groupId>com.studentregistration</groupId>
+    <artifactId>StudentRegistration</artifactId>
+    <version>1.0.0</version>
+    
+    <!-- This tells Maven to build a .war file -->
+    <packaging>war</packaging>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        
+        <!-- This MUST match the Java version in your Dockerfile (temurin-17) -->
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+    </properties>
+
+    <dependencies>
+    
+        <!-- 1. Jakarta Servlet API (Needed to compile your servlet) -->
+        <!-- <scope>provided</scope> means the server (webapp-runner) will provide this -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <version>5.0.0</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- 2. SendGrid API (THE FIX for your email "Connection timed out" error) -->
+        <!-- Use this library and the new Java code I provided to fix the error -->
+        <dependency>
+            <groupId>com.sendgrid</groupId>
+            <artifactId>sendgrid-java</artifactId>
+            <version>4.10.0</version>
+        </dependency>
+
+        <!-- 
+        ====================================================================
+        == WARNING: THIS IS THE CAUSE OF YOUR "Connection timed out" ERROR ==
+        ====================================================================
+        This library tries to connect to Gmail, which Render blocks.
+        You should DELETE this dependency and use SendGrid (above) instead.
+        Your app will continue to be slow and fail to send email if you use this.
+        -->
+        <dependency>
+            <groupId>org.eclipse.angus</groupId>
+            <artifactId>angus-mail</artifactId>
+            <version>2.0.3</version>
+        </dependency>
+
+
+        <!-- 4. iText 7 (For PDF Generation) -->
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>kernel</artifactId>
+            <version>8.0.4</version>
+        </dependency>
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>layout</artifactId>
+            <version>8.0.4</version>
+        </dependency>
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>io</artifactId>
+            <version>8.0.4</version>
+        </dependency>
+        
+        <!-- 5. PostgreSQL Database Driver (For your DbConnection.java) -->
+        <!-- Render's free database is PostgreSQL -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.3</version>
+        </dependency>
+        
+    </dependencies>
+
+    <build>
+        <!-- This sets the final name of the .war file to "StudentRegistration.war" -->
+        <finalName>${project.artifactId}</finalName>
+        
+        <plugins>
+            <!-- This plugin handles the .war file creation -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>3.4.0</version>
+            </plugin>
+            <!-- This plugin ensures the compiler uses Java 17 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
